@@ -1,0 +1,37 @@
+<!-- templates/name_pet.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Name a Pet</title>
+</head>
+<body>
+    <h2>Name {{ pet.breed }}</h2>
+    <form method="POST">
+
+
+        <div>
+            <label for="first_name">Enter Your First Name:</label>
+            <input type="text" id="first_name" name="first_name" required>
+            <label for="last_name">Enter Your Last Name:</label>
+            <input type="text" id="last_name" name="last_name" required>
+        </div>
+
+        <div>
+            <label for="email">Enter Your Email Address:</label>
+            <input type="text" id="email" name="email" required>
+        </div>
+
+        <div>
+            <label for="donation">Enter Your Donation Amount:</label>
+            <input type="text" id="donation" name="donation" required>
+        </div>
+
+        <div>
+        <label for="name">Pet Name:</label>
+        <input type="text" id="name" name="name" required>
+        <button type="submit">Submit</button>
+
+    </div>
+    </form>
+</body>
+</html>
