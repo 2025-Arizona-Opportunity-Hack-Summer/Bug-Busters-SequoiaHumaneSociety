@@ -28,7 +28,16 @@ pets = [
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
+@app.route("/")
+def home():
+    return render_template("home.html")
+
+@app.route("/admin")
+def admin():
+    return render_template("admin.html")
+
+
+@app.route("/pets", methods=["GET"])
 def index():
     return render_template("index.html", pets=pets)
 
