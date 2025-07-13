@@ -1,14 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Name a Shelter Pet</title>
+  <title>Adoptable Pets</title>
 </head>
 <body>
-  <h2>Name a Pet</h2>
-  <form method="POST">
-    <label for="name">Enter your pet name:</label>
-    <input type="text" id="name" name="name" required />
-    <button type="submit">Submit</button>
-  </form>
+  <h1>Meet Our Pets!</h1>
+  {% for pet in pets %}
+    <div style="margin-bottom: 20px;">
+      <img src="/static/golden.jpg" alt="Pet Image" width="200" />
+      <img src="/static/tabby.jpg" alt="Pet Image" width="200" />
+      <img src="/static/bulldog.jpg" alt="Pet Image" width="200" />
+      <h3>{{ pet.breed }} ({{ pet.age }})</h3>
+      <p>Color: {{ pet.color }}</p>
+      <a href="/name/{{ pet.id }}">
+        <button>Name Me!</button>
+      </a>
+    </div>
+  {% endfor %}
 </body>
 </html>
