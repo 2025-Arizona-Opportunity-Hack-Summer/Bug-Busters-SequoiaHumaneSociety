@@ -9,11 +9,6 @@
     <div style="margin-bottom: 20px;">
 
       <img src="{{ url_for('static', filename=pet.image) }}" alt="Pet Image" width="200" />
-<!-- hi -->
-
-      <!-- <img src="/static/golden.jpg" alt="Pet Image" width="200" />
-      <img src="/static/tabby.jpg" alt="Pet Image" width="200" />
-      <img src="/static/bulldog.jpg" alt="Pet Image" width="200" /> -->
       <h3>{{ pet.breed }} ({{ pet.age }})</h3>
       <p>Color: {{ pet.color }}</p>
       <a href="/name/{{ pet.id }}">
