@@ -41,6 +41,8 @@ def name_pet(pet_id):
     return render_template("name_pet.html", pet=pet)
 
 
+
+
 # @app.route("/", methods=["GET", "POST"])
 # def index():
 #     if request.method == "POST":
@@ -49,6 +51,7 @@ def name_pet(pet_id):
 #         print(f"Name submitted: {pet_name}")
 #         return redirect("/success")
 #     return render_template("index.html")
+
 
 
 
