@@ -32,9 +32,10 @@ app = Flask(__name__)
 def home():
     return render_template("home.html")
 
-@app.route("/admin")
-def admin():
-    return render_template("admin.html")
+@app.route("/adminLogin", methods=["GET", "POST"])
+def adminlogin():
+    return render_template("adminLogin.html")
+
 
 
 @app.route("/pets", methods=["GET"])
