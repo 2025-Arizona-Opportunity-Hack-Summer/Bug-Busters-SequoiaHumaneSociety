@@ -19,11 +19,25 @@ class NameSuggestion(db.Model):
     suggested_name = db.Column(db.String(50))
     donation = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
-
    
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
-     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
+
+    # NEW method to create a NameSuggestion from form data
+    @classmethod
+    def create_from_form(cls, pet_id, form):
+        return cls(
+            pet_id=pet_id,
+            first_name=form.get("first_name"),
+            last_name=form.get("last_name"),
+            email=form.get("email"),
+            suggested_name=form.get("suggested_name"),
+            donation=float(form.get("donation")),
+            status="pending"
+        )
+
+
+    status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
 class AdminUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
