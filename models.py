@@ -24,6 +24,7 @@ class NameSuggestion(db.Model):
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
 
+
     @classmethod
     def create_from_form(cls, pet_id, form):
         return cls(
@@ -37,6 +38,7 @@ class NameSuggestion(db.Model):
         )
 
     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
+
 
 class AdminUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
