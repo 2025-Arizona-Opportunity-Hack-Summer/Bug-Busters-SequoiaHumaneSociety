@@ -20,4 +20,75 @@ class NameSuggestion(db.Model):
     donation = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
+    status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
+
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
+
+class AdminUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    work_id = db.Column(db.String(50), nullable=False)
+    is_approved = db.Column(db.Boolean, default=False)  
+
+class AdminAccessRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    work_id = db.Column(db.String(50), nullable=False)
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+class AdminActivityLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admin_user.id'), nullable=False)
+    action = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+    admin = db.relationship('AdminUser', backref=db.backref('activities', lazy=True))
+
+
+#create admin user -shelby
+
+#delete admin user -shelby
+
+#admin login -shelby
+
+#does user exist -shelby
+
+#approve admin access request -shelby
+
+#reject access request -shelby
+
+#list admins/ access requests -shelby
+
+#login admin activity -shelby
+
+
+
+
+
+#add a pet -caro
+
+#delete a pet -caro
+
+#update pet -caro
+
+#get pet by id -caro
+
+#get all pets -caro
+
+#add name suggestion -carp
+
+#get all name suggestions -caro
+
+#get pending name suggestions - caro
+
+#delete name suggestion -caro
+
+#approve pet name suggestion -caro
+
+#reject pet name suggestion -caro
