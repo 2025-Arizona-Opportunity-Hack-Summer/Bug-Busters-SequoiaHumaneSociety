@@ -20,9 +20,10 @@ class NameSuggestion(db.Model):
     donation = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
-    status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
+   
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
+     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
 class AdminUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
