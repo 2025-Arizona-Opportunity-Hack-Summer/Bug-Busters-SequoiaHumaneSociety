@@ -20,12 +20,8 @@ class NameSuggestion(db.Model):
     donation = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
-<<<<<<< HEAD
     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
-    pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
-
-=======
    
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
@@ -46,7 +42,6 @@ class NameSuggestion(db.Model):
     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
 
->>>>>>> 2d72ab10bcd7e683196a8250d6f8ff3224848e47
 class AdminUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
@@ -91,10 +86,7 @@ class AdminActivityLog(db.Model):
 #login admin activity -shelby
 
 
-<<<<<<< HEAD
-=======
 #stripe api idk how tho???
->>>>>>> 2d72ab10bcd7e683196a8250d6f8ff3224848e47
 
 
 
@@ -118,8 +110,4 @@ class AdminActivityLog(db.Model):
 
 #approve pet name suggestion -caro
 
-<<<<<<< HEAD
 #reject pet name suggestion -caro
-=======
-#reject pet name suggestion -caro
->>>>>>> 2d72ab10bcd7e683196a8250d6f8ff3224848e47
