@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect
-from models import db, NameSuggestion
+from models import db, NameSuggestion, Pet
 
 
 app = Flask(__name__)
@@ -13,29 +13,29 @@ db.init_app(app)
 
 
 # Sample pet data (for now, hardcoded — we'll move this to a DB later)
-pets = [
-    {
-        "id": 1,
-        "breed": "Golden Retriever",
-        "color": "Golden",
-        "age": "2 years",
-        "image": "golden.jpg"
-    },
-    {
-        "id": 2,
-        "breed": "Tabby Cat",
-        "color": "Orange",
-        "age": "1 year",
-        "image": "tabby.jpg"
-    },
-    {
-        "id": 3,
-        "breed": "Bulldog",
-        "color": "White and Brown",
-        "age": "3 years",
-        "image": "bulldog.jpg"
-    }
-]
+# pets = [
+#     {
+#         "id": 1,
+#         "breed": "Golden Retriever",
+#         "color": "Golden",
+#         "age": "2 years",
+#         "image": "golden.jpg"
+#     },
+#     {
+#         "id": 2,
+#         "breed": "Tabby Cat",
+#         "color": "Orange",
+#         "age": "1 year",
+#         "image": "tabby.jpg"
+#     },
+#     {
+#         "id": 3,
+#         "breed": "Bulldog",
+#         "color": "White and Brown",
+#         "age": "3 years",
+#         "image": "bulldog.jpg"
+#     }
+# ]
 
 
 #app = Flask(__name__)
@@ -52,17 +52,19 @@ def adminlogin():
 
 @app.route("/pets", methods=["GET"])
 def index():
+    pets = Pet.query.all() #is getting the pets from db rather than it being hardcoded
     return render_template("index.html", pets=pets)
 
 @app.route("/name/<int:pet_id>", methods=["GET", "POST"])
 def name_pet(pet_id):
-    pet = next((p for p in pets if p["id"] == pet_id), None)
+    #pet = next((p for p in pets if p["id"] == pet_id), None)
+    pet = Pet.query.get_or_404(pet_id)
     if request.method == "POST":
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        email = request.form.get("email")
-        suggested_name = request.form.get("suggested_name")
-        donation = request.form.get("donation")
+        # first_name = request.form.get("first_name")
+        # last_name = request.form.get("last_name")
+        # email = request.form.get("email")
+        # suggested_name = request.form.get("suggested_name")
+        # donation = request.form.get("donation")
 
         # Create a new NameSuggestion record
         suggestion = NameSuggestion.create_from_form(pet_id, request.form)
