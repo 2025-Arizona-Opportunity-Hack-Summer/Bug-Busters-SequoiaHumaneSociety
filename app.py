@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect
-from models import db
+from models import db, NameSuggestion
 
 
 app = Flask(__name__)
@@ -58,8 +58,20 @@ def index():
 def name_pet(pet_id):
     pet = next((p for p in pets if p["id"] == pet_id), None)
     if request.method == "POST":
-        # process form submission here
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        email = request.form.get("email")
+        suggested_name = request.form.get("suggested_name")
+        donation = request.form.get("donation")
+
+        # Create a new NameSuggestion record
+        suggestion = NameSuggestion.create_from_form(pet_id, request.form)
+        db.session.add(suggestion)
+        db.session.commit()
+
+
         return redirect("/success")
+
     return render_template("name_pet.html", pet=pet)
 
 
