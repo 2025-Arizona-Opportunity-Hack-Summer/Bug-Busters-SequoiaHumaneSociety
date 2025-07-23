@@ -41,7 +41,8 @@ class NameSuggestion(db.Model):
 
     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
-
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
 class AdminUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
@@ -50,6 +51,83 @@ class AdminUser(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     work_id = db.Column(db.String(50), nullable=False)
     is_approved = db.Column(db.Boolean, default=False)  
+
+    @classmethod
+    def create_admin_user(cls, first_name, last_name, username, password, work_id):
+        password_hash = generate_password_hash(password)
+        admin = cls(
+            first_name=first_name,
+            last_name=last_name,
+            username=username,
+            password_hash=password_hash,
+            work_id=work_id,
+            is_approved=True
+        )
+        db.session.add(admin)
+        db.session.commit()
+        return admin
+
+    @classmethod
+    def delete_admin_user(cls, admin_id):
+        admin = cls.query.get(admin_id)
+        if admin:
+            db.session.delete(admin)
+            db.session.commit()
+            return True
+        return False
+
+    @classmethod
+    def login_admin(cls, username, password):
+        admin = cls.query.filter_by(username=username, is_approved=True).first()
+        if admin and check_password_hash(admin.password_hash, password):
+            return admin
+        return None
+
+    @classmethod
+    def admin_exists(cls, username):
+        return cls.query.filter_by(username=username).first() is not None
+    
+    @classmethod
+    def approve_admin_request(cls, request_id):
+        req = AdminAccessRequest.query.get(request_id)
+        if not req:
+            return None
+            
+            admin = cls(
+                first_name=req.first_name,
+                last_name=req.last_name,
+                username=req.username,
+                password_hash=req.password_hash,
+                work_id=req.work_id,
+                is_approved=True
+                )
+            db.session.add(admin)
+            db.session.delete(req)
+            db.session.commit()
+            return admin
+
+    @classmethod
+    def reject_admin_request(cls, request_id):
+        req = AdminAccessRequest.query.get(request_id)
+        if req:
+            db.session.delete(req)
+            db.session.commit()
+            return True
+        return False
+
+    @classmethod
+    def list_all_admins(cls):
+        return cls.query.all()
+
+    @classmethod
+    def list_access_requests(cls):
+        return AdminAccessRequest.query.order_by(AdminAccessRequest.timestamp.desc()).all()
+
+
+
+
+
+
 
 class AdminAccessRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -68,22 +146,12 @@ class AdminActivityLog(db.Model):
 
     admin = db.relationship('AdminUser', backref=db.backref('activities', lazy=True))
 
+    @classmethod
+    def log_admin_activity(cls, admin_id, action):
+        log = cls(admin_id=admin_id, action=action)
+        db.session.add(log)
+        db.session.commit()
 
-#create admin user -shelby
-
-#delete admin user -shelby
-
-#admin login -shelby
-
-#does user exist -shelby
-
-#approve admin access request -shelby
-
-#reject access request -shelby
-
-#list admins/ access requests -shelby
-
-#login admin activity -shelby
 
 
 #stripe api idk how tho???
