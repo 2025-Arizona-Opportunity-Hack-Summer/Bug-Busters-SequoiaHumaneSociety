@@ -1,8 +1,12 @@
 from flask import Flask, render_template, request, redirect
 from models import db, NameSuggestion, Pet
-
+from flask import Flask, session
 
 app = Flask(__name__)
+app.secret_key = "stinky_Farts"  # Replace with a secure, random string
+
+
+#app = Flask(__name__)
 
 # Configure SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pets.db'
