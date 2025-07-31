@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Home</title>
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+
+  <h2>Pending Name Suggestions</h2>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>Pet ID</th>
+        <th>Suggested Name</th>
+        <th>Suggested By</th>
+        <th>Email</th>
+        <th>Donation</th>
+        <th>Timestamp</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for suggestion in suggestions %}
+      <tr>
+        <td>{{ suggestion.pet_id }}</td>
+        <td>{{ suggestion.suggested_name }}</td>
+        <td>{{ suggestion.first_name }} {{ suggestion.last_name }}</td>
+        <td>{{ suggestion.email }}</td>
+        <td>{{ suggestion.donation }}</td>
+        <td>{{ suggestion.timestamp }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('approve_suggestion', suggestion_id=suggestion.id) }}">
+            <button type="submit">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('reject_suggestion', suggestion_id=suggestion.id) }}">
+            <button type="submit">Reject</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Pending Admin Access Requests</h2>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>Full Name</th>
+        <th>Username</th>
+        <th>Work ID</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for request in pending_admin_requests %}
+      <tr>
+        <td>{{ request.first_name }} {{ request.last_name }}</td>
+        <td>{{ request.username }}</td>
+        <td>{{ request.work_id }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('approve_admin_request', request_id=request.id) }}">
+            <button type="submit">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('decline_admin_request', request_id=request.id) }}">
+            <button type="submit">Decline</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><a href="{{ url_for('logout') }}">Logout</a></p>
+</body>
+</html>
