@@ -33,7 +33,7 @@ app.config['STRIPE_SECRET_KEY'] = os.environ.get("STRIPE_SECRET_KEY")
 stripe.api_key = app.config['STRIPE_SECRET_KEY']
 
 #key for sendgrid
-#app.config['SENDGRID_API_KEY'] = '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'
+
 sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
 #app = Flask(__name__)
 
