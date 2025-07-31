@@ -26,6 +26,10 @@ class NameSuggestion(db.Model):
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
 
+    @classmethod
+    def get_pending(cls):
+        return cls.query.filter_by(status="pending").order_by(cls.timestamp.desc()).all()
+
 
     @classmethod
     def create_from_form(cls, pet_id, form):
@@ -79,7 +83,18 @@ class AdminUser(db.Model):
     @classmethod
     def login_admin(cls, username, password):
         admin = cls.query.filter_by(username=username, is_approved=True).first()
+        #debug
+        print("Found admin in DB:", admin)
+        if admin: 
+            print("Admin username:", admin.username)
+            print("Admin is_approved:", admin.is_approved)
+            print("Checking password:", password)
+            print("Stored hash:", admin.password_hash)
+            print("Password check:", check_password_hash(admin.password_hash, password))
+
+
         if admin and check_password_hash(admin.password_hash, password):
+
             return admin
         return None
 
@@ -137,6 +152,7 @@ class AdminAccessRequest(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     work_id = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
+    status = db.Column(db.String(20), nullable=False, default='pending')
 
 class AdminActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -159,23 +175,94 @@ class AdminActivityLog(db.Model):
 
 
 #add a pet -caro
+@classmethod
+def add_pet(cls, breed, color, age, image):
+        pet = cls(breed=breed, color=color, age=age, image=image)
+        db.session.add(pet)
+        db.session.commit()
+        return pet
 
-#delete a pet -caro
+@classmethod
+def delete_pet(cls, pet_id):
+        pet = cls.query.get(pet_id)
+        if pet:
+            db.session.delete(pet)
+            db.session.commit()
+            return True
+        return False
 
-#update pet -caro
+@classmethod
+def update_pet(cls, pet_id, breed=None, color=None, age=None, image=None):
+        pet = cls.query.get(pet_id)
+        if not pet:
+            return None
+        if breed:
+            pet.breed = breed
+        if color:
+            pet.color = color
+        if age:
+            pet.age = age
+        if image:
+            pet.image = image
+        db.session.commit()
+        return pet
 
-#get pet by id -caro
+@classmethod
+def get_pet_by_id(cls, pet_id):
+        return cls.query.get(pet_id)
 
-#get all pets -caro
+@classmethod
+def get_all_pets(cls):
+        return cls.query.all()
+
 
 #add name suggestion -carp
+@classmethod
+def create_from_form(cls, pet_id, form):
+        return cls(
+            pet_id=pet_id,
+            first_name=form.get("first_name"),
+            last_name=form.get("last_name"),
+            email=form.get("email"),
+            suggested_name=form.get("suggested_name"),
+            donation=float(form.get("donation")),
+            status="pending"
+        )
 
-#get all name suggestions -caro
+@classmethod
+def add_suggestion(cls, pet_id, form):
+        suggestion = cls.create_from_form(pet_id, form)
+        db.session.add(suggestion)
+        db.session.commit()
+        return suggestion
 
-#get pending name suggestions - caro
+@classmethod
+def get_all(cls):
+    return cls.query.order_by(cls.timestamp.desc()).all()
 
-#delete name suggestion -caro
+@classmethod
+def delete_suggestion(cls, suggestion_id):
+        suggestion = cls.query.get(suggestion_id)
+        if suggestion:
+            db.session.delete(suggestion)
+            db.session.commit()
+            return True
+        return False
 
-#approve pet name suggestion -caro
+@classmethod
+def approve(cls, suggestion_id):
+        suggestion = cls.query.get(suggestion_id)
+        if suggestion and suggestion.status == "pending":
+            suggestion.status = "approved"
+            db.session.commit()
+            return suggestion
+        return None
 
-#reject pet name suggestion -caro
+@classmethod
+def reject(cls, suggestion_id):
+        suggestion = cls.query.get(suggestion_id)
+        if suggestion and suggestion.status == "pending":
+            suggestion.status = "rejected"
+            db.session.commit()
+            return suggestion
+        return None
