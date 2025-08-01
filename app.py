@@ -17,11 +17,6 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Replace with a secure, random string
-
-ssl._create_default_https_context = ssl._create_unverified_context
-
-#app = Flask(__name__)
 
 # Configure SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pets.db'
@@ -30,15 +25,33 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize the database
 db.init_app(app)
 
-#keys for stripe checkout
-app.config['STRIPE_PUBLIC_KEY'] = os.environ.get("STRIPE_PUBLIC_KEY")
-app.config['STRIPE_SECRET_KEY'] = os.environ.get("STRIPE_SECRET_KEY")
 
-stripe.api_key = app.config['STRIPE_SECRET_KEY']
+# Sample pet data (for now, hardcoded — we'll move this to a DB later)
+pets = [
+    {
+        "id": 1,
+        "breed": "Golden Retriever",
+        "color": "Golden",
+        "age": "2 years",
+        "image": "golden.jpg"
+    },
+    {
+        "id": 2,
+        "breed": "Tabby Cat",
+        "color": "Orange",
+        "age": "1 year",
+        "image": "tabby.jpg"
+    },
+    {
+        "id": 3,
+        "breed": "Bulldog",
+        "color": "White and Brown",
+        "age": "3 years",
+        "image": "bulldog.jpg"
+    }
+]
 
-#key for sendgrid
 
-sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
 #app = Flask(__name__)
 
 #route for uploading pets
@@ -235,49 +248,22 @@ def index():
 
 @app.route("/name/<int:pet_id>", methods=["GET", "POST"])
 def name_pet(pet_id):
+    #pet = next((p for p in pets if p["id"] == pet_id), None)
     pet = Pet.query.get_or_404(pet_id)
     if request.method == "POST":
-        # first_name = request.form.get("first_name")
-        # last_name = request.form.get("last_name")
-        # email = request.form.get("email")
-        # suggested_name = request.form.get("suggested_name")
-        # donation = request.form.get("donation")
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        email = request.form.get("email")
+        suggested_name = request.form.get("suggested_name")
+        donation = request.form.get("donation")
 
         # Create a new NameSuggestion record
-        #testing: below works but erasing in meantimes
-        # suggestion = NameSuggestion.create_from_form(pet_id, request.form)
-        # db.session.add(suggestion)
-        # db.session.commit()
+        suggestion = NameSuggestion.create_from_form(pet_id, request.form)
+        db.session.add(suggestion)
+        db.session.commit()
 
-# Create Stripe checkout session
-        # session = stripe.checkout.Session.create(
-        #     payment_method_types=['card'],
-        #     line_items=[{
-        #         'price_data': {
-        #             'currency': 'usd',
-        #             'product_data': {
-        #                 'name': f"Donation for {pet.breed}",
-        #             },
-        #             'unit_amount': int(float(request.form['donation']) * 100),  # convert dollars to cents
-        #         },
-        #         'quantity': 1,
-        #     }],
-        #     mode='payment',
-        #     success_url=url_for('success', _external=True),
-        #     cancel_url=url_for('index', _external=True),
-        # )
-        print("Storing in session, not DB") #used for debug
-        session['form_data'] = {
-            "pet_id": pet_id,
-            "first_name": request.form["first_name"],
-            "last_name": request.form["last_name"],
-            "email": request.form["email"],
-            "suggested_name": request.form["suggested_name"],
-            "donation": request.form["donation"]
-        }
-        return redirect("/create-checkout-session")
 
-       # return redirect(session.url, code=303)
+        return redirect("/success")
 
     return render_template("name_pet.html", pet=pet)
 

@@ -45,6 +45,24 @@ class NameSuggestion(db.Model):
 
     status = db.Column(db.String(20), default="pending")  #pending, approved, rejected by admin
 
+    @classmethod
+    def approve(cls, suggestion_id):
+    suggestion = cls.query.get(suggestion_id)
+    if suggestion and suggestion.status == "pending":
+        suggestion.status = "approved"
+        db.session.commit()
+        return suggestion
+    return None
+
+    @classmethod
+    def reject(cls, suggestion_id):
+    suggestion = cls.query.get(suggestion_id)
+    if suggestion and suggestion.status == "pending":
+        suggestion.status = "rejected"
+        db.session.commit()
+        return suggestion
+    return None
+
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 class AdminUser(db.Model):
@@ -57,8 +75,9 @@ class AdminUser(db.Model):
     is_approved = db.Column(db.Boolean, default=False)  
 
     @classmethod
-    def create_admin_user(cls, first_name, last_name, username, password, work_id):
-        password_hash = generate_password_hash(password)
+    def create_admin_user(cls, first_name, last_name, username, password, work_id, pre_hashed=False):
+        print("✅ create_admin_user called — pre_hashed =", pre_hashed) #debug
+        password_hash = password if pre_hashed else generate_password_hash(password)
         admin = cls(
             first_name=first_name,
             last_name=last_name,
@@ -102,24 +121,24 @@ class AdminUser(db.Model):
     def admin_exists(cls, username):
         return cls.query.filter_by(username=username).first() is not None
     
-    @classmethod
-    def approve_admin_request(cls, request_id):
-        req = AdminAccessRequest.query.get(request_id)
-        if not req:
-            return None
+    # @classmethod
+    # def approve_admin_request(cls, request_id):
+    #     req = AdminAccessRequest.query.get(request_id)
+    #     if not req:
+    #         return None
             
-            admin = cls(
-                first_name=req.first_name,
-                last_name=req.last_name,
-                username=req.username,
-                password_hash=req.password_hash,
-                work_id=req.work_id,
-                is_approved=True
-                )
-            db.session.add(admin)
-            db.session.delete(req)
-            db.session.commit()
-            return admin
+    #         admin = cls(
+    #             first_name=req.first_name,
+    #             last_name=req.last_name,
+    #             username=req.username,
+    #             password_hash=req.password_hash,
+    #             work_id=req.work_id,
+    #             is_approved=True
+    #             )
+    #         db.session.add(admin)
+    #         db.session.delete(req)
+    #         db.session.commit()
+    #         return admin
 
     @classmethod
     def reject_admin_request(cls, request_id):
