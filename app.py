@@ -14,17 +14,9 @@ import urllib3
 from flask import flash, url_for
 from models import AdminUser, AdminAccessRequest, AdminActivityLog
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-
-from datetime import timedelta
-
-app.permanent_session_lifetime = timedelta(minutes=30)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Replace with a secure, random string
-
-ssl._create_default_https_context = ssl._create_unverified_context
-
-#app = Flask(__name__)
 
 # Configure SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pets.db'
@@ -33,16 +25,72 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize the database
 db.init_app(app)
 
-#keys for stripe checkout
-app.config['STRIPE_PUBLIC_KEY'] = os.environ.get("STRIPE_PUBLIC_KEY")
-app.config['STRIPE_SECRET_KEY'] = os.environ.get("STRIPE_SECRET_KEY")
 
-stripe.api_key = app.config['STRIPE_SECRET_KEY']
+# Sample pet data (for now, hardcoded — we'll move this to a DB later)
+pets = [
+    {
+        "id": 1,
+        "breed": "Golden Retriever",
+        "color": "Golden",
+        "age": "2 years",
+        "image": "golden.jpg"
+    },
+    {
+        "id": 2,
+        "breed": "Tabby Cat",
+        "color": "Orange",
+        "age": "1 year",
+        "image": "tabby.jpg"
+    },
+    {
+        "id": 3,
+        "breed": "Bulldog",
+        "color": "White and Brown",
+        "age": "3 years",
+        "image": "bulldog.jpg"
+    }
+]
 
-#key for sendgrid
 
-sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
 #app = Flask(__name__)
+
+#route for uploading pets
+UPLOAD_FOLDER = "static/uploads"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route("/admin/add-pet", methods=["GET", "POST"])
+def add_pet():
+    if request.method == "POST":
+        breed = request.form["breed"]
+        color = request.form["color"]
+        age = request.form["age"]
+        image = request.files["image"]
+
+        filename = secure_filename(image.filename)
+        image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        pet = Pet(breed=breed, color=color, age=age, image=filename)
+        db.session.add(pet)
+        db.session.commit()
+
+        return redirect("/pets")
+        
+
+    return render_template("add_pet.html")
+
+@app.route("/admin/delete-pet/<int:pet_id>", methods=["POST"])
+def delete_pet(pet_id):
+    if not session.get("admin_logged_in"):
+        flash("You must be logged in as an admin.")
+        return redirect(url_for("adminlogin"))
+
+    pet = Pet.query.get_or_404(pet_id)
+    db.session.delete(pet)
+    db.session.commit()
+    flash(f"Pet '{pet.breed}' has been deleted.")
+    return redirect(url_for("adminhome"))
+
+
 
 #route for stripe
 @app.route("/create-checkout-session", methods=["GET", "POST"])
@@ -102,7 +150,6 @@ Your donation of ${name_suggestion.donation:.2f} was received. We appreciate you
 """)
 
     try:
-        sg = SendGridAPIClient(app.config('SENDGRID_API_KEY'))
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         response = sg.send(message)
         print(f"Email sent! Status code: {response.status_code}")
@@ -132,17 +179,6 @@ def payment_success():
     return render_template("success.html", donation=suggestion.donation)
 
 
-@app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
-def approve_suggestion(suggestion_id):
-    NameSuggestion.approve(suggestion_id)
-    return redirect(url_for("adminhome"))
-
-@app.route("/admin/suggestion/reject/<int:suggestion_id>", methods=["POST"])
-def reject_suggestion(suggestion_id):
-    NameSuggestion.reject(suggestion_id)
-    return redirect(url_for("adminhome"))
-
-
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -164,7 +200,6 @@ def adminlogin():
         print("Admin from login_admin():", admin)
 
         if admin:
-            session.permanent = True
             session["admin_id"] = admin.id
             session["admin_logged_in"] = True 
             print("Admin logged in:", session["admin_logged_in"])
@@ -181,10 +216,6 @@ def adminlogin():
     return render_template("adminLogin.html")
 
 
-
-
-
-
 @app.route("/admin/home")
 def adminhome():
     if not session.get("admin_logged_in"):
@@ -194,11 +225,8 @@ def adminhome():
 
     suggestions = NameSuggestion.get_pending()
     pending_admin_requests = AdminAccessRequest.query.filter_by(status="pending").all()
-    #debug
-    print("Pending admin requests:", pending_admin_requests)
-    #debug
-    print("Pending admin requests:", pending_admin_requests)
-    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests)
+    pets = Pet.query.all() 
+    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests, pets=pets)
 
 @app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
 def approve_suggestion(suggestion_id):
@@ -220,49 +248,22 @@ def index():
 
 @app.route("/name/<int:pet_id>", methods=["GET", "POST"])
 def name_pet(pet_id):
+    #pet = next((p for p in pets if p["id"] == pet_id), None)
     pet = Pet.query.get_or_404(pet_id)
     if request.method == "POST":
-        # first_name = request.form.get("first_name")
-        # last_name = request.form.get("last_name")
-        # email = request.form.get("email")
-        # suggested_name = request.form.get("suggested_name")
-        # donation = request.form.get("donation")
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        email = request.form.get("email")
+        suggested_name = request.form.get("suggested_name")
+        donation = request.form.get("donation")
 
         # Create a new NameSuggestion record
-        #testing: below works but erasing in meantimes
-        # suggestion = NameSuggestion.create_from_form(pet_id, request.form)
-        # db.session.add(suggestion)
-        # db.session.commit()
+        suggestion = NameSuggestion.create_from_form(pet_id, request.form)
+        db.session.add(suggestion)
+        db.session.commit()
 
-# Create Stripe checkout session
-        # session = stripe.checkout.Session.create(
-        #     payment_method_types=['card'],
-        #     line_items=[{
-        #         'price_data': {
-        #             'currency': 'usd',
-        #             'product_data': {
-        #                 'name': f"Donation for {pet.breed}",
-        #             },
-        #             'unit_amount': int(float(request.form['donation']) * 100),  # convert dollars to cents
-        #         },
-        #         'quantity': 1,
-        #     }],
-        #     mode='payment',
-        #     success_url=url_for('success', _external=True),
-        #     cancel_url=url_for('index', _external=True),
-        # )
-        print("Storing in session, not DB") #used for debug
-        session['form_data'] = {
-            "pet_id": pet_id,
-            "first_name": request.form["first_name"],
-            "last_name": request.form["last_name"],
-            "email": request.form["email"],
-            "suggested_name": request.form["suggested_name"],
-            "donation": request.form["donation"]
-        }
-        return redirect("/create-checkout-session")
 
-       # return redirect(session.url, code=303)
+        return redirect("/success")
 
     return render_template("name_pet.html", pet=pet)
 
@@ -275,7 +276,7 @@ def success():
 def logout():
     session.clear()
     flash("You have been logged out.")
-    return redirect(url_for("home"))
+    return redirect(url_for("adminlogin"))
 
 @app.route("/admin/request-status/<username>")
 def admin_request_status(username):
@@ -283,9 +284,11 @@ def admin_request_status(username):
     approved_admin = AdminUser.query.filter_by(username=username).first()
 
     if approved_admin:
-        status = "approved"
+        # Approved → redirect to login
+        flash("Your request has been approved. Please log in.")
+        return redirect(url_for("adminlogin"))
     elif request_entry:
-        status = request_entry.status
+        status = "pending"
     else:
         status = "declined"
 
@@ -313,9 +316,7 @@ def request_admin_access():
             last_name=last_name,
             username=username,
             password_hash=password_hash,
-            work_id=work_id,
-            status="pending",
-            status="pending"
+            work_id=work_id
         )
         db.session.add(request_entry)
         db.session.commit()
@@ -352,9 +353,7 @@ def approve_admin_request(request_id):
         last_name=request_entry.last_name,
         username=request_entry.username,
         password=request_entry.password_hash,  # This assumes it's already hashed
-        work_id=request_entry.work_id,
-        pre_hashed=True,
-        pre_hashed=True
+        work_id=request_entry.work_id
     )
 
     # Update status
@@ -396,62 +395,6 @@ def create_initial_admin():
         work_id="001"
     )
     return "Initial admin created. You can now log in at /admin/login."
-
-#debug
-@app.route("/admin/debug/delete-broken-admin/<username>")
-def delete_broken_admin(username):
-    admin = AdminUser.query.filter_by(username=username).first()
-    if admin:
-        db.session.delete(admin)
-        db.session.commit()
-        return f"Deleted admin {username}"
-    return "Admin not found"
-
-@app.route("/debug/delete-request/<username>")
-def delete_admin_request_by_username(username):
-    req = AdminAccessRequest.query.filter_by(username=username).first()
-    if req:
-        db.session.delete(req)
-        db.session.commit()
-        return f"Deleted request for {username}"
-    return "Request not found"
-
-
-#debug
-@app.route("/debug/admin-requests")
-def debug_admin_requests():
-    requests = AdminAccessRequest.query.all()
-    return "<br>".join([f"{r.username} - {r.status}" for r in requests])
-
-
-
-#debug
-@app.route("/admin/debug/delete-broken-admin/<username>")
-def delete_broken_admin(username):
-    admin = AdminUser.query.filter_by(username=username).first()
-    if admin:
-        db.session.delete(admin)
-        db.session.commit()
-        return f"Deleted admin {username}"
-    return "Admin not found"
-
-@app.route("/debug/delete-request/<username>")
-def delete_admin_request_by_username(username):
-    req = AdminAccessRequest.query.filter_by(username=username).first()
-    if req:
-        db.session.delete(req)
-        db.session.commit()
-        return f"Deleted request for {username}"
-    return "Request not found"
-
-
-#debug
-@app.route("/debug/admin-requests")
-def debug_admin_requests():
-    requests = AdminAccessRequest.query.all()
-    return "<br>".join([f"{r.username} - {r.status}" for r in requests])
-
-
     
 if __name__ == "__main__":
         with app.app_context():
