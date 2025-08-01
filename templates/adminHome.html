@@ -6,6 +6,7 @@
 <body>
   <h1>Admin Dashboard</h1>
 
+
   <h2>Pending Name Suggestions</h2>
   <table border="1">
     <thead>
@@ -26,8 +27,8 @@
         <td>{{ suggestion.suggested_name }}</td>
         <td>{{ suggestion.first_name }} {{ suggestion.last_name }}</td>
         <td>{{ suggestion.email }}</td>
-        <td>{{ suggestion.donation }}</td>
-        <td>{{ suggestion.timestamp }}</td>
+        <td>{{ "%.2f"| format(suggestion.donation) }}</td>
+        <td>{{ suggestion.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
         <td>
           <form method="POST" action="{{ url_for('approve_suggestion', suggestion_id=suggestion.id) }}">
             <button type="submit">Approve</button>
@@ -43,6 +44,7 @@
 
   <h2>Pending Admin Access Requests</h2>
   <table border="1">
+  {% if suggestions %}
     <thead>
       <tr>
         <th>Full Name</th>
@@ -69,6 +71,9 @@
       {% endfor %}
     </tbody>
   </table>
+  {% else %}
+  <p>No pending name suggestions.</p>
+  {% endif %}
 
   <p><a href="{{ url_for('logout') }}">Logout</a></p>
 </body>
