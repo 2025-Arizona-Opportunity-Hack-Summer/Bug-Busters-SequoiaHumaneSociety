@@ -98,7 +98,9 @@ Your donation of ${name_suggestion.donation:.2f} was received. We appreciate you
 """)
 
     try:
+
         sg = SendGridAPIClient(app.config('SENDGRID_API_KEY'))
+        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         response = sg.send(message)
         print(f"Email sent! Status code: {response.status_code}")
     except Exception as e:
