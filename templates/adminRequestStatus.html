@@ -11,8 +11,12 @@
         <p>Your admin request is <strong>still pending</strong>. Please check back later.</p>
     {% elif status == "declined" %}
         <p>Your admin request was <strong>not approved</strong>. Please contact support.</p>
+    {% elif status == "approved" %}
+    <p>Your admin request was <strong>approved</strong>! You can now <a href="{{ url_for('adminlogin') }}">log in here</a>.</p>
+
     {% endif %}
 
     <p><a href="{{ url_for('home') }}">Return to home</a></p>
 </body>
 </html>
+

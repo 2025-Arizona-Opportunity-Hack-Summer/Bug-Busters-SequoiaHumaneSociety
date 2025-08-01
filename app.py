@@ -16,6 +16,10 @@ from models import AdminUser, AdminAccessRequest, AdminActivityLog
 from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
+
+from datetime import timedelta
+
+app.permanent_session_lifetime = timedelta(minutes=30)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Replace with a secure, random string
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -98,6 +102,7 @@ Your donation of ${name_suggestion.donation:.2f} was received. We appreciate you
 """)
 
     try:
+        sg = SendGridAPIClient(app.config('SENDGRID_API_KEY'))
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         response = sg.send(message)
         print(f"Email sent! Status code: {response.status_code}")
@@ -127,6 +132,17 @@ def payment_success():
     return render_template("success.html", donation=suggestion.donation)
 
 
+@app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
+def approve_suggestion(suggestion_id):
+    NameSuggestion.approve(suggestion_id)
+    return redirect(url_for("adminhome"))
+
+@app.route("/admin/suggestion/reject/<int:suggestion_id>", methods=["POST"])
+def reject_suggestion(suggestion_id):
+    NameSuggestion.reject(suggestion_id)
+    return redirect(url_for("adminhome"))
+
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -148,6 +164,7 @@ def adminlogin():
         print("Admin from login_admin():", admin)
 
         if admin:
+            session.permanent = True
             session["admin_id"] = admin.id
             session["admin_logged_in"] = True 
             print("Admin logged in:", session["admin_logged_in"])
@@ -164,6 +181,8 @@ def adminlogin():
     return render_template("adminLogin.html")
 
 
+
+
 @app.route("/admin/home")
 def adminhome():
     if not session.get("admin_logged_in"):
@@ -173,6 +192,8 @@ def adminhome():
 
     suggestions = NameSuggestion.get_pending()
     pending_admin_requests = AdminAccessRequest.query.filter_by(status="pending").all()
+    #debug
+    print("Pending admin requests:", pending_admin_requests)
     return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests)
 
 @app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
@@ -250,7 +271,7 @@ def success():
 def logout():
     session.clear()
     flash("You have been logged out.")
-    return redirect(url_for("adminlogin"))
+    return redirect(url_for("home"))
 
 @app.route("/admin/request-status/<username>")
 def admin_request_status(username):
@@ -258,11 +279,9 @@ def admin_request_status(username):
     approved_admin = AdminUser.query.filter_by(username=username).first()
 
     if approved_admin:
-        # Approved → redirect to login
-        flash("Your request has been approved. Please log in.")
-        return redirect(url_for("adminlogin"))
+        status = "approved"
     elif request_entry:
-        status = "pending"
+        status = request_entry.status
     else:
         status = "declined"
 
@@ -290,7 +309,8 @@ def request_admin_access():
             last_name=last_name,
             username=username,
             password_hash=password_hash,
-            work_id=work_id
+            work_id=work_id,
+            status="pending"
         )
         db.session.add(request_entry)
         db.session.commit()
@@ -327,7 +347,8 @@ def approve_admin_request(request_id):
         last_name=request_entry.last_name,
         username=request_entry.username,
         password=request_entry.password_hash,  # This assumes it's already hashed
-        work_id=request_entry.work_id
+        work_id=request_entry.work_id,
+        pre_hashed=True
     )
 
     # Update status
@@ -369,6 +390,34 @@ def create_initial_admin():
         work_id="001"
     )
     return "Initial admin created. You can now log in at /admin/login."
+
+#debug
+@app.route("/admin/debug/delete-broken-admin/<username>")
+def delete_broken_admin(username):
+    admin = AdminUser.query.filter_by(username=username).first()
+    if admin:
+        db.session.delete(admin)
+        db.session.commit()
+        return f"Deleted admin {username}"
+    return "Admin not found"
+
+@app.route("/debug/delete-request/<username>")
+def delete_admin_request_by_username(username):
+    req = AdminAccessRequest.query.filter_by(username=username).first()
+    if req:
+        db.session.delete(req)
+        db.session.commit()
+        return f"Deleted request for {username}"
+    return "Request not found"
+
+
+#debug
+@app.route("/debug/admin-requests")
+def debug_admin_requests():
+    requests = AdminAccessRequest.query.all()
+    return "<br>".join([f"{r.username} - {r.status}" for r in requests])
+
+
     
 if __name__ == "__main__":
         with app.app_context():
