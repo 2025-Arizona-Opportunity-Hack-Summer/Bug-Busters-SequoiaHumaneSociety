@@ -8,7 +8,9 @@
   {% for pet in pets %}
     <div style="margin-bottom: 20px;">
 
-      <img src="{{ url_for('static', filename=pet.image) }}" alt="Pet Image" width="200" />
+      <!-- <img src="{{ url_for('static', filename=pet.image) }}" alt="Pet Image" width="200" /> -->
+      <img src="{{ url_for('static', filename='uploads/' ~ pet.image) }}" width="200" alt="Pet image">
+
       <h3>{{ pet.breed }} ({{ pet.age }})</h3>
       <p>Color: {{ pet.color }}</p>
       <a href="/name/{{ pet.id }}">
