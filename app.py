@@ -8,15 +8,20 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 import ssl
 import urllib3
+from werkzeug.utils import secure_filename
 #print("TEST_MESSAGE:", os.environ.get("TEST_MESSAGE"))
 
 
 from flask import flash, url_for
 from models import AdminUser, AdminAccessRequest, AdminActivityLog
 from werkzeug.security import generate_password_hash
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Replace with a secure, random string
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
+#app = Flask(__name__)
 
 # Configure SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pets.db'
@@ -25,72 +30,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize the database
 db.init_app(app)
 
+#keys for stripe checkout
+app.config['STRIPE_PUBLIC_KEY'] = os.environ.get("STRIPE_PUBLIC_KEY")
+app.config['STRIPE_SECRET_KEY'] = os.environ.get("STRIPE_SECRET_KEY")
 
-# Sample pet data (for now, hardcoded — we'll move this to a DB later)
-pets = [
-    {
-        "id": 1,
-        "breed": "Golden Retriever",
-        "color": "Golden",
-        "age": "2 years",
-        "image": "golden.jpg"
-    },
-    {
-        "id": 2,
-        "breed": "Tabby Cat",
-        "color": "Orange",
-        "age": "1 year",
-        "image": "tabby.jpg"
-    },
-    {
-        "id": 3,
-        "breed": "Bulldog",
-        "color": "White and Brown",
-        "age": "3 years",
-        "image": "bulldog.jpg"
-    }
-]
+stripe.api_key = app.config['STRIPE_SECRET_KEY']
 
+#key for sendgrid
 
+sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
 #app = Flask(__name__)
-
-#route for uploading pets
-UPLOAD_FOLDER = "static/uploads"
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-@app.route("/admin/add-pet", methods=["GET", "POST"])
-def add_pet():
-    if request.method == "POST":
-        breed = request.form["breed"]
-        color = request.form["color"]
-        age = request.form["age"]
-        image = request.files["image"]
-
-        filename = secure_filename(image.filename)
-        image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-
-        pet = Pet(breed=breed, color=color, age=age, image=filename)
-        db.session.add(pet)
-        db.session.commit()
-
-        return redirect("/pets")
-        
-
-    return render_template("add_pet.html")
-
-@app.route("/admin/delete-pet/<int:pet_id>", methods=["POST"])
-def delete_pet(pet_id):
-    if not session.get("admin_logged_in"):
-        flash("You must be logged in as an admin.")
-        return redirect(url_for("adminlogin"))
-
-    pet = Pet.query.get_or_404(pet_id)
-    db.session.delete(pet)
-    db.session.commit()
-    flash(f"Pet '{pet.breed}' has been deleted.")
-    return redirect(url_for("adminhome"))
-
-
 
 #route for stripe
 @app.route("/create-checkout-session", methods=["GET", "POST"])
@@ -150,6 +99,8 @@ Your donation of ${name_suggestion.donation:.2f} was received. We appreciate you
 """)
 
     try:
+
+       # sg = SendGridAPIClient(app.config('SENDGRID_API_KEY'))
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         response = sg.send(message)
         print(f"Email sent! Status code: {response.status_code}")
@@ -186,7 +137,36 @@ def home():
     #changes
 
 @app.route("/admin/login", methods=["GET", "POST"])
+    #changes
+
+@app.route("/admin/login", methods=["GET", "POST"])
 def adminlogin():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        #debug
+        print("Username from form:", username)
+        print("Password from form:", password)
+
+
+        admin = AdminUser.login_admin(username, password)
+        #debug
+        print("Admin from login_admin():", admin)
+
+        if admin:
+            session["admin_id"] = admin.id
+            session["admin_logged_in"] = True 
+            print("Admin logged in:", session["admin_logged_in"])
+            #debug
+            print("Logged in successfully. Session:", session)
+
+            AdminActivityLog.log_admin_activity(admin.id, "Logged in")
+            return redirect(url_for("adminhome"))
+        else:
+            flash("Invalid username or password, or you are not approved.")
+            #debug
+            print("Login failed: Invalid credentials or not approved.")
+
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -216,6 +196,8 @@ def adminlogin():
     return render_template("adminLogin.html")
 
 
+
+
 @app.route("/admin/home")
 def adminhome():
     if not session.get("admin_logged_in"):
@@ -225,45 +207,74 @@ def adminhome():
 
     suggestions = NameSuggestion.get_pending()
     pending_admin_requests = AdminAccessRequest.query.filter_by(status="pending").all()
-    pets = Pet.query.all() 
-    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests, pets=pets)
+    #debug
+    print("Pending admin requests:", pending_admin_requests)
+    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests, 
+    pets=Pet.query.filter(~Pet.suggestions.any(NameSuggestion.status == 'approved')).all())
 
 @app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
 def approve_suggestion(suggestion_id):
-    NameSuggestion.approve(suggestion_id)
-    return redirect(url_for("adminhome"))
+   NameSuggestion.approve(suggestion_id)
+   # Get the full suggestion to send email
+   suggestion = NameSuggestion.query.get(suggestion_id)
+   if suggestion:
+       # Send confirmation email
+       message = Mail(
+           from_email='carolmilan69@gmail.com',
+           to_emails=suggestion.email,
+           subject='Your pet name suggestion was approved!',
+           plain_text_content=f"""
+Hi {suggestion.first_name},
+
+
+Great news! Your name suggestion "{suggestion.suggested_name}" for the {suggestion.pet.breed} has been approved by our admin team!
+
+
+Thanks for supporting the Sequoia Humane Society 💜
+
+
+- The Sequoia Humane Society Team
+""")
+       try:
+           sg.send(message)
+           print("Approval email sent.")
+       except Exception as e:
+           print("Error sending approval email:", e)
+           pet = suggestion.pet
+           if pet:
+            db.session.delete(pet)
+            db.session.commit()
+   return redirect(url_for("adminhome"))
 
 @app.route("/admin/suggestion/reject/<int:suggestion_id>", methods=["POST"])
 def reject_suggestion(suggestion_id):
-    NameSuggestion.reject(suggestion_id)
-    return redirect(url_for("adminhome"))
+   NameSuggestion.reject(suggestion_id)
+   return redirect(url_for("adminhome"))
 
 
 
 
 @app.route("/pets", methods=["GET"])
 def index():
-    pets = Pet.query.all() 
+    pets = Pet.query.filter(~Pet.suggestions.any(NameSuggestion.status == 'approved')).all()
     return render_template("index.html", pets=pets)
 
 @app.route("/name/<int:pet_id>", methods=["GET", "POST"])
 def name_pet(pet_id):
-    #pet = next((p for p in pets if p["id"] == pet_id), None)
     pet = Pet.query.get_or_404(pet_id)
     if request.method == "POST":
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        email = request.form.get("email")
-        suggested_name = request.form.get("suggested_name")
-        donation = request.form.get("donation")
+        print("Storing in session, not DB") #used for debug
+        session['form_data'] = {
+            "pet_id": pet_id,
+            "first_name": request.form["first_name"],
+            "last_name": request.form["last_name"],
+            "email": request.form["email"],
+            "suggested_name": request.form["suggested_name"],
+            "donation": request.form["donation"]
+        }
+        return redirect("/create-checkout-session")
 
-        # Create a new NameSuggestion record
-        suggestion = NameSuggestion.create_from_form(pet_id, request.form)
-        db.session.add(suggestion)
-        db.session.commit()
-
-
-        return redirect("/success")
+       # return redirect(session.url, code=303)
 
     return render_template("name_pet.html", pet=pet)
 
@@ -276,7 +287,7 @@ def success():
 def logout():
     session.clear()
     flash("You have been logged out.")
-    return redirect(url_for("adminlogin"))
+    return redirect(url_for("home"))
 
 @app.route("/admin/request-status/<username>")
 def admin_request_status(username):
@@ -284,11 +295,9 @@ def admin_request_status(username):
     approved_admin = AdminUser.query.filter_by(username=username).first()
 
     if approved_admin:
-        # Approved → redirect to login
-        flash("Your request has been approved. Please log in.")
-        return redirect(url_for("adminlogin"))
+        status = "approved"
     elif request_entry:
-        status = "pending"
+        status = request_entry.status
     else:
         status = "declined"
 
@@ -316,7 +325,8 @@ def request_admin_access():
             last_name=last_name,
             username=username,
             password_hash=password_hash,
-            work_id=work_id
+            work_id=work_id,
+            status="pending"
         )
         db.session.add(request_entry)
         db.session.commit()
@@ -353,7 +363,8 @@ def approve_admin_request(request_id):
         last_name=request_entry.last_name,
         username=request_entry.username,
         password=request_entry.password_hash,  # This assumes it's already hashed
-        work_id=request_entry.work_id
+        work_id=request_entry.work_id,
+        pre_hashed=True
     )
 
     # Update status
@@ -371,6 +382,46 @@ def decline_admin_request(request_id):
 
     flash(f"{request_entry.username}'s admin request has been declined.")
     return redirect(url_for("adminhome"))
+
+
+ #caro add pets/ delete pets
+ #route for uploading pets
+UPLOAD_FOLDER = "static/uploads"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route("/admin/add-pet", methods=["GET", "POST"])
+def add_pet():
+    if request.method == "POST":
+        breed = request.form["breed"]
+        color = request.form["color"]
+        age = request.form["age"]
+        image = request.files["image"]
+
+        filename = secure_filename(image.filename)
+        image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        pet = Pet(breed=breed, color=color, age=age, image=filename)
+        db.session.add(pet)
+        db.session.commit()
+
+        return redirect("/pets")
+        
+
+    return render_template("add_pet.html")
+
+@app.route("/admin/delete-pet/<int:pet_id>", methods=["POST"])
+def delete_pet(pet_id):
+    if not session.get("admin_logged_in"):
+        flash("You must be logged in as an admin.")
+        return redirect(url_for("adminlogin"))
+
+    pet = Pet.query.get_or_404(pet_id)
+    db.session.delete(pet)
+    db.session.commit()
+    flash(f"Pet '{pet.breed}' has been deleted.")
+    return redirect(url_for("adminhome"))
+
+ #end caro      
 
 @app.route("/admin/debug")
 def debug_admins():
@@ -395,6 +446,34 @@ def create_initial_admin():
         work_id="001"
     )
     return "Initial admin created. You can now log in at /admin/login."
+
+#debug
+@app.route("/admin/debug/delete-broken-admin/<username>")
+def delete_broken_admin(username):
+    admin = AdminUser.query.filter_by(username=username).first()
+    if admin:
+        db.session.delete(admin)
+        db.session.commit()
+        return f"Deleted admin {username}"
+    return "Admin not found"
+
+@app.route("/debug/delete-request/<username>")
+def delete_admin_request_by_username(username):
+    req = AdminAccessRequest.query.filter_by(username=username).first()
+    if req:
+        db.session.delete(req)
+        db.session.commit()
+        return f"Deleted request for {username}"
+    return "Request not found"
+
+
+#debug
+@app.route("/debug/admin-requests")
+def debug_admin_requests():
+    requests = AdminAccessRequest.query.all()
+    return "<br>".join([f"{r.username} - {r.status}" for r in requests])
+
+
     
 if __name__ == "__main__":
         with app.app_context():

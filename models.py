@@ -13,6 +13,7 @@ class Pet(db.Model):
 class NameSuggestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pet_id = db.Column(db.Integer, db.ForeignKey('pet.id'), nullable=False)
+    pet = db.relationship('Pet', backref='suggestions')
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
     email = db.Column(db.String(120))
@@ -25,6 +26,10 @@ class NameSuggestion(db.Model):
    
 
     pet = db.relationship('Pet', backref=db.backref('suggestions', lazy=True))
+
+    @classmethod
+    def get_pending(cls):
+        return cls.query.filter_by(status="pending").order_by(cls.timestamp.desc()).all()
 
     @classmethod
     def get_pending(cls):
@@ -47,21 +52,21 @@ class NameSuggestion(db.Model):
 
     @classmethod
     def approve(cls, suggestion_id):
-    suggestion = cls.query.get(suggestion_id)
-    if suggestion and suggestion.status == "pending":
-        suggestion.status = "approved"
-        db.session.commit()
-        return suggestion
-    return None
-
+        suggestion = cls.query.get(suggestion_id)
+        if suggestion and suggestion.status == "pending":
+            suggestion.status = "approved"
+            db.session.commit()
+            return suggestion
+        return None
     @classmethod
     def reject(cls, suggestion_id):
-    suggestion = cls.query.get(suggestion_id)
-    if suggestion and suggestion.status == "pending":
-        suggestion.status = "rejected"
-        db.session.commit()
-        return suggestion
-    return None
+        suggestion = cls.query.get(suggestion_id)
+        if suggestion and suggestion.status == "pending":
+            suggestion.status = "rejected"
+            db.session.commit()
+            return suggestion
+        return None
+
 
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
@@ -73,6 +78,7 @@ class AdminUser(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     work_id = db.Column(db.String(50), nullable=False)
     is_approved = db.Column(db.Boolean, default=False)  
+
 
     @classmethod
     def create_admin_user(cls, first_name, last_name, username, password, work_id, pre_hashed=False):
@@ -112,6 +118,16 @@ class AdminUser(db.Model):
             print("Password check:", check_password_hash(admin.password_hash, password))
 
 
+        #debug
+        print("Found admin in DB:", admin)
+        if admin: 
+            print("Admin username:", admin.username)
+            print("Admin is_approved:", admin.is_approved)
+            print("Checking password:", password)
+            print("Stored hash:", admin.password_hash)
+            print("Password check:", check_password_hash(admin.password_hash, password))
+
+
         if admin and check_password_hash(admin.password_hash, password):
 
             return admin
@@ -126,7 +142,24 @@ class AdminUser(db.Model):
     #     req = AdminAccessRequest.query.get(request_id)
     #     if not req:
     #         return None
+    # @classmethod
+    # def approve_admin_request(cls, request_id):
+    #     req = AdminAccessRequest.query.get(request_id)
+    #     if not req:
+    #         return None
             
+    #         admin = cls(
+    #             first_name=req.first_name,
+    #             last_name=req.last_name,
+    #             username=req.username,
+    #             password_hash=req.password_hash,
+    #             work_id=req.work_id,
+    #             is_approved=True
+    #             )
+    #         db.session.add(admin)
+    #         db.session.delete(req)
+    #         db.session.commit()
+    #         return admin
     #         admin = cls(
     #             first_name=req.first_name,
     #             last_name=req.last_name,
@@ -172,6 +205,7 @@ class AdminAccessRequest(db.Model):
     work_id = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
     status = db.Column(db.String(20), nullable=False, default='pending')
+    status = db.Column(db.String(20), nullable=False, default='pending')
 
 class AdminActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -194,6 +228,46 @@ class AdminActivityLog(db.Model):
 
 
 #add a pet -caro
+@classmethod
+def add_pet(cls, breed, color, age, image):
+        pet = cls(breed=breed, color=color, age=age, image=image)
+        db.session.add(pet)
+        db.session.commit()
+        return pet
+
+@classmethod
+def delete_pet(cls, pet_id):
+        pet = cls.query.get(pet_id)
+        if pet:
+            db.session.delete(pet)
+            db.session.commit()
+            return True
+        return False
+
+@classmethod
+def update_pet(cls, pet_id, breed=None, color=None, age=None, image=None):
+        pet = cls.query.get(pet_id)
+        if not pet:
+            return None
+        if breed:
+            pet.breed = breed
+        if color:
+            pet.color = color
+        if age:
+            pet.age = age
+        if image:
+            pet.image = image
+        db.session.commit()
+        return pet
+
+@classmethod
+def get_pet_by_id(cls, pet_id):
+        return cls.query.get(pet_id)
+
+@classmethod
+def get_all_pets(cls):
+        return cls.query.all()
+
 @classmethod
 def add_pet(cls, breed, color, age, image):
         pet = cls(breed=breed, color=color, age=age, image=image)
@@ -268,20 +342,3 @@ def delete_suggestion(cls, suggestion_id):
             return True
         return False
 
-@classmethod
-def approve(cls, suggestion_id):
-        suggestion = cls.query.get(suggestion_id)
-        if suggestion and suggestion.status == "pending":
-            suggestion.status = "approved"
-            db.session.commit()
-            return suggestion
-        return None
-
-@classmethod
-def reject(cls, suggestion_id):
-        suggestion = cls.query.get(suggestion_id)
-        if suggestion and suggestion.status == "pending":
-            suggestion.status = "rejected"
-            db.session.commit()
-            return suggestion
-        return None
