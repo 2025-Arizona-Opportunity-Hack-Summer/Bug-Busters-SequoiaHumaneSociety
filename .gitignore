@@ -1,2 +1,6 @@
 .envinstance/pets.db
 instance/pets.db
+instance/pets.db
+.env
+__pycache__/
+*.pyc
