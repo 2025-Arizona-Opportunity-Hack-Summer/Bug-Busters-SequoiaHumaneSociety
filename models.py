@@ -13,6 +13,7 @@ class Pet(db.Model):
 class NameSuggestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pet_id = db.Column(db.Integer, db.ForeignKey('pet.id'), nullable=False)
+    pet = db.relationship('Pet', backref='suggestions')
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
     email = db.Column(db.String(120))
@@ -80,9 +81,6 @@ class AdminUser(db.Model):
 
 
     @classmethod
-    def create_admin_user(cls, first_name, last_name, username, password, work_id, pre_hashed=False):
-        print("✅ create_admin_user called — pre_hashed =", pre_hashed) #debug
-        password_hash = password if pre_hashed else generate_password_hash(password)
     def create_admin_user(cls, first_name, last_name, username, password, work_id, pre_hashed=False):
         print("✅ create_admin_user called — pre_hashed =", pre_hashed) #debug
         password_hash = password if pre_hashed else generate_password_hash(password)

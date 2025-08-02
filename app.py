@@ -209,7 +209,8 @@ def adminhome():
     pending_admin_requests = AdminAccessRequest.query.filter_by(status="pending").all()
     #debug
     print("Pending admin requests:", pending_admin_requests)
-    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests, pets=Pet.query.all())
+    return render_template("adminHome.html", suggestions=suggestions, pending_admin_requests=pending_admin_requests, 
+    pets=Pet.query.filter(~Pet.suggestions.any(NameSuggestion.status == 'approved')).all())
 
 @app.route("/admin/suggestion/approve/<int:suggestion_id>", methods=["POST"])
 def approve_suggestion(suggestion_id):
@@ -239,6 +240,10 @@ Thanks for supporting the Sequoia Humane Society 💜
            print("Approval email sent.")
        except Exception as e:
            print("Error sending approval email:", e)
+           pet = suggestion.pet
+           if pet:
+            db.session.delete(pet)
+            db.session.commit()
    return redirect(url_for("adminhome"))
 
 @app.route("/admin/suggestion/reject/<int:suggestion_id>", methods=["POST"])
@@ -251,42 +256,13 @@ def reject_suggestion(suggestion_id):
 
 @app.route("/pets", methods=["GET"])
 def index():
-    pets = Pet.query.all() 
+    pets = Pet.query.filter(~Pet.suggestions.any(NameSuggestion.status == 'approved')).all()
     return render_template("index.html", pets=pets)
 
 @app.route("/name/<int:pet_id>", methods=["GET", "POST"])
 def name_pet(pet_id):
     pet = Pet.query.get_or_404(pet_id)
     if request.method == "POST":
-        # first_name = request.form.get("first_name")
-        # last_name = request.form.get("last_name")
-        # email = request.form.get("email")
-        # suggested_name = request.form.get("suggested_name")
-        # donation = request.form.get("donation")
-
-        # Create a new NameSuggestion record
-        #testing: below works but erasing in meantimes
-        # suggestion = NameSuggestion.create_from_form(pet_id, request.form)
-        # db.session.add(suggestion)
-        # db.session.commit()
-
-# Create Stripe checkout session
-        # session = stripe.checkout.Session.create(
-        #     payment_method_types=['card'],
-        #     line_items=[{
-        #         'price_data': {
-        #             'currency': 'usd',
-        #             'product_data': {
-        #                 'name': f"Donation for {pet.breed}",
-        #             },
-        #             'unit_amount': int(float(request.form['donation']) * 100),  # convert dollars to cents
-        #         },
-        #         'quantity': 1,
-        #     }],
-        #     mode='payment',
-        #     success_url=url_for('success', _external=True),
-        #     cancel_url=url_for('index', _external=True),
-        # )
         print("Storing in session, not DB") #used for debug
         session['form_data'] = {
             "pet_id": pet_id,
