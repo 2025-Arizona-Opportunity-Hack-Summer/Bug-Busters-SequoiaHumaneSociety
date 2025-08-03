@@ -71,7 +71,7 @@
     Team members: Carolina Milan, Shelby Alonso E
     Slack Channel: https://app.slack.com/client/T1Q7936BH/C090XJCJQLR
     Link to DevPost Project:
-    Link to Final Demo Video:
+    Link to Final Demo Video: https://drive.google.com/file/d/1cvPOKl6zAWr4Ad8Lun-ICYM-wyZpPpEz/view?usp=drive_link
 
     #Problem Statement
 
